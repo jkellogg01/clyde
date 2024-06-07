@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/charmbracelet/bubbles/textinput"
 )
 
 type Query struct {
@@ -19,15 +20,15 @@ type Query struct {
 }
 
 func main() {
-	devMode := flag.Bool("v", false, "verbose")
+	verbose := flag.Bool("v", false, "verbose")
 	flag.Parse()
-	if *devMode {
+	if *verbose {
 		log.SetLevel(log.DebugLevel)
-		log.Debug("dev mode enabled, you will see debug logging")
 	}
 
+    input := textinput.New()
 	r := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter a query in the format 'METHOD URL'\n> ")
+	fmt.Print(input.View())
 	rawQuery, err := r.ReadString('\n')
 	if err != nil {
 		log.Fatal("Failed to read input", "error", err)
@@ -48,8 +49,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Debug("server responded!", "duration", time.Since(queryTime))
-	mustPrintHTTPResponse(resp)
+    respTime := time.Since(queryTime)
+	log.Debug("server responded!", "duration", respTime)
+	mustPrintHTTPResponse(resp, respTime)
 }
 
 func newQuery(method, strurl string) (Query, error) {
@@ -78,7 +80,7 @@ func (q Query) execute() (*http.Response, error) {
 	return q.Request(q.URL)
 }
 
-func mustPrintHTTPResponse(r *http.Response) {
+func mustPrintHTTPResponse(r *http.Response, respTime time.Duration) {
 	decoder := json.NewDecoder(r.Body)
 	var data interface{}
 	err := decoder.Decode(&data)
@@ -89,7 +91,16 @@ func mustPrintHTTPResponse(r *http.Response) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Status: %s\n", r.Status)
+    var status string
+    switch r.StatusCode / 100 {
+    case 2:
+        status = styleStatusGreen.Render(r.Status)
+    case 1, 3:
+        status = styleStatusYellow.Render(r.Status)
+    default:
+        status = styleStatusRed.Render(r.Status)
+    }
+	fmt.Printf("Responded with %s in %v\n", status, respTime)
 	fmt.Println("Headers:")
 	for k, v := range r.Header {
 		fmt.Printf("\t%s: %s\n", k, strings.Join(v, ", "))
