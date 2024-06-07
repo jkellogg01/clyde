@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/charmbracelet/bubbles/textinput"
 )
 
 type Query struct {
@@ -26,9 +25,8 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-    input := textinput.New()
 	r := bufio.NewReader(os.Stdin)
-	fmt.Print(input.View())
+    fmt.Print("Enter a query in the format: METHOD URL\n> ")
 	rawQuery, err := r.ReadString('\n')
 	if err != nil {
 		log.Fatal("Failed to read input", "error", err)
