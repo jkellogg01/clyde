@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 )
 
@@ -19,11 +20,12 @@ type Query struct {
 }
 
 func main() {
-	verbose := flag.Bool("v", false, "verbose")
-	flag.Parse()
-	if *verbose {
-		log.SetLevel(log.DebugLevel)
+	f, err := tea.LogToFile("debug.log", "debug")
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer f.Close()
+	log.SetLevel(log.DebugLevel)
 
 	r := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter a query in the format: METHOD URL\n> ")
@@ -89,8 +91,8 @@ func mustPrintHTTPResponse(r *http.Response, respTime time.Duration) {
 			log.Fatal(err)
 		}
 	} else {
-        body = []byte(err.Error())
-    }
+		body = []byte(err.Error())
+	}
 	var status string
 	switch r.StatusCode / 100 {
 	case 2:
