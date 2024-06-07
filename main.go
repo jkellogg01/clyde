@@ -26,7 +26,7 @@ func main() {
 	}
 
 	r := bufio.NewReader(os.Stdin)
-    fmt.Print("Enter a query in the format: METHOD URL\n> ")
+	fmt.Print("Enter a query in the format: METHOD URL\n> ")
 	rawQuery, err := r.ReadString('\n')
 	if err != nil {
 		log.Fatal("Failed to read input", "error", err)
@@ -47,7 +47,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-    respTime := time.Since(queryTime)
+	respTime := time.Since(queryTime)
 	log.Debug("server responded!", "duration", respTime)
 	mustPrintHTTPResponse(resp, respTime)
 }
@@ -82,22 +82,24 @@ func mustPrintHTTPResponse(r *http.Response, respTime time.Duration) {
 	decoder := json.NewDecoder(r.Body)
 	var data interface{}
 	err := decoder.Decode(&data)
-	if err != nil {
-		log.Fatal(err)
-	}
-	body, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		log.Fatal(err)
-	}
-    var status string
-    switch r.StatusCode / 100 {
-    case 2:
-        status = styleStatusGreen.Render(r.Status)
-    case 1, 3:
-        status = styleStatusYellow.Render(r.Status)
-    default:
-        status = styleStatusRed.Render(r.Status)
+	var body []byte
+	if err == nil {
+		body, err = json.MarshalIndent(data, "", "  ")
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+        body = []byte(err.Error())
     }
+	var status string
+	switch r.StatusCode / 100 {
+	case 2:
+		status = styleStatusGreen.Render(r.Status)
+	case 1, 3:
+		status = styleStatusYellow.Render(r.Status)
+	default:
+		status = styleStatusRed.Render(r.Status)
+	}
 	fmt.Printf("Responded with %s in %v\n", status, respTime)
 	fmt.Println("Headers:")
 	for k, v := range r.Header {
