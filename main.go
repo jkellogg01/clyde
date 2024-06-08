@@ -1,111 +1,87 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"flag"
-	"fmt"
-	"net/http"
-	"os"
-	"strings"
-	"time"
+	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/log"
+	"github.com/charmbracelet/lipgloss"
 )
 
-type Query struct {
-	URL     string
-	Request func(string) (*http.Response, error)
+type model struct {
+	width  int
+	height int
+	active applicationStatus
+}
+
+type applicationStatus int
+
+const (
+	form applicationStatus = iota
+	results
+)
+
+func New() *model {
+	m := new(model)
+	return m
+}
+
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			if m.active == form {
+				m.active = results
+			}
+		case "esc":
+			if m.active == results {
+				m.active = form
+			}
+		case "ctrl+c", "q":
+			return m, tea.Quit
+        default:
+            log.Print(msg.String())
+		}
+	}
+	return m, cmd
+}
+
+func (m model) View() string {
+	var active string
+	switch m.active {
+	case form:
+		active = "form mode"
+	case results:
+		active = "results mode"
+	default:
+		panic("invalid model state")
+	}
+	return lipgloss.Place(
+		m.width,
+		m.height,
+		0.5,
+		0.5,
+		active,
+	)
 }
 
 func main() {
-	f, err := tea.LogToFile("debug.log", "debug")
+	f, err := tea.LogToFile("debug.log", "[DEBUG]")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("err: %s", err)
 	}
 	defer f.Close()
-	log.SetLevel(log.DebugLevel)
 
-	r := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter a query in the format: METHOD URL\n> ")
-	rawQuery, err := r.ReadString('\n')
-	if err != nil {
-		log.Fatal("Failed to read input", "error", err)
+	p := tea.NewProgram(New(), tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		log.Fatalf("err: %s", err)
 	}
-	// this removes the newline from the input we took from stdin
-	rawQuery = rawQuery[:len(rawQuery)-1]
-	method, userUrl, didCut := strings.Cut(rawQuery, " ")
-	if !didCut {
-		log.Fatalf("Malformed user input: %s", rawQuery)
-	}
-	query, err := newQuery(method, userUrl)
-	if err != nil {
-		log.Fatal(err)
-	}
-	queryTime := time.Now()
-	log.Debug("sending request", "url", userUrl)
-	resp, err := query.execute()
-	if err != nil {
-		log.Fatal(err)
-	}
-	respTime := time.Since(queryTime)
-	log.Debug("server responded!", "duration", respTime)
-	mustPrintHTTPResponse(resp, respTime)
-}
-
-func newQuery(method, strurl string) (Query, error) {
-	methodFunc, err := getMethodFunc(method)
-	if err != nil {
-		return Query{}, err
-	}
-	return Query{
-		Request: methodFunc,
-		URL:     strurl,
-	}, nil
-}
-
-func getMethodFunc(method string) (func(string) (*http.Response, error), error) {
-	upperMethod := strings.ToUpper(method)
-	log.Debug("dispatching text method to http request function", "method", upperMethod)
-	switch upperMethod {
-	case http.MethodGet:
-		return http.Get, nil
-	default:
-		return nil, fmt.Errorf("http method '%s' is not currently supported", upperMethod)
-	}
-}
-
-func (q Query) execute() (*http.Response, error) {
-	return q.Request(q.URL)
-}
-
-func mustPrintHTTPResponse(r *http.Response, respTime time.Duration) {
-	decoder := json.NewDecoder(r.Body)
-	var data interface{}
-	err := decoder.Decode(&data)
-	var body []byte
-	if err == nil {
-		body, err = json.MarshalIndent(data, "", "  ")
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		body = []byte(err.Error())
-	}
-	var status string
-	switch r.StatusCode / 100 {
-	case 2:
-		status = styleStatusGreen.Render(r.Status)
-	case 1, 3:
-		status = styleStatusYellow.Render(r.Status)
-	default:
-		status = styleStatusRed.Render(r.Status)
-	}
-	fmt.Printf("Responded with %s in %v\n", status, respTime)
-	fmt.Println("Headers:")
-	for k, v := range r.Header {
-		fmt.Printf("\t%s: %s\n", k, strings.Join(v, ", "))
-	}
-	fmt.Printf("Response body:\n%s\n", body)
 }
