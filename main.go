@@ -7,12 +7,14 @@ import (
 )
 
 type model struct {
+	input  tea.Model
 	width  int
 	height int
 }
 
 func New() *model {
 	m := new(model)
+	m.input = NewQueryInput()
 	return m
 }
 
@@ -22,11 +24,19 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-    return m, cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c":
+			return m, tea.Quit
+		}
+	}
+	m.input, cmd = m.input.Update(msg)
+	return m, cmd
 }
 
 func (m model) View() string {
-    return ""
+	return m.input.View()
 }
 
 func main() {
