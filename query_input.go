@@ -43,22 +43,26 @@ func (m QueryInput) Init() tea.Cmd {
 
 func (m QueryInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.infield.Width = msg.Width - 3
+	}
 	m.infield, cmd = m.infield.Update(msg)
 	m.value = m.infield.Value()
 	return m, cmd
 }
 
 func (m QueryInput) View() string {
-    segments, err := m.segments()
-    if err != nil {
-        m.err = err.Error()
-    }
+	segments, err := m.segments()
+	if err != nil {
+		m.err = err.Error()
+	}
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
-		lipgloss.JoinHorizontal(
+		lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Render(lipgloss.JoinHorizontal(
 			lipgloss.Left,
 			segments...,
-		),
-		m.err,
+		)),
+		lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(1)).Render(m.err),
 	)
 }
