@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jkellogg01/clyde/request"
 )
 
 type QueryInput struct {
@@ -46,6 +47,11 @@ func (m QueryInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.infield.Width = msg.Width - 3
+	case tea.KeyMsg:
+		if msg.String() == "enter" {
+			// right now this is just so that the list of tokens gets logged to the console
+			request.Parse(m.value)
+		}
 	}
 	m.infield, cmd = m.infield.Update(msg)
 	m.value = m.infield.Value()
