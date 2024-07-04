@@ -2,11 +2,12 @@ package main
 
 import (
 	"errors"
+	"log"
+	"net/url"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jkellogg01/clyde/request"
 )
 
 type QueryInput struct {
@@ -50,7 +51,11 @@ func (m QueryInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if msg.String() == "enter" {
 			// right now this is just so that the list of tokens gets logged to the console
-			request.Parse(m.value)
+            parsed, err := url.Parse(m.value)
+            if err != nil {
+                log.Printf("ERROR: %s", err)
+            }
+            log.Printf("Parsed URL: %s", parsed.String())
 		}
 	}
 	m.infield, cmd = m.infield.Update(msg)
